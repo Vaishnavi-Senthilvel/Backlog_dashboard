@@ -17,7 +17,13 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"])
+from flask_cors import CORS
+
+CORS(app, origins=[
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://backlog-dashboard-mauve.vercel.app"
+])
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
