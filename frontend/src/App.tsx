@@ -295,11 +295,11 @@ function BacklogTable({ data, setData }) {
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
-    if(!file) return;
+    if(!file) return
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch("http://localhost:5000/api/upload", { method:"POST", body:formData });
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, { method:"POST", body:formData });
       const json = await res.json();
       if(json.data) setData(json.data);
     } catch(err) {
