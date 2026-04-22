@@ -1,4 +1,15 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+type BacklogRow = {
+  id: string;
+  title: string;
+  function: string;
+  team: string;
+  priority: string;
+  status: string;
+  plannedEnd: string;
+  actualEnd?: string;
+  remarks?: string;
+};
+import { useState, useMemo, useRef } from "react";
 
 const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL = import.meta.env.VITE_GEMINI_MODEL || "gemini-2.5-flash";
@@ -42,11 +53,11 @@ const PC = {
 };
 const CHART_COLORS = ["#3b82f6","#8b5cf6","#f59e0b","#10b981","#ef4444","#06b6d4","#f97316"];
 
-const s = {
+const s: Record<string, any> = {
   app: { display:"flex", height:"100vh", background:"var(--bg)", color:"var(--text-main)", overflow:"hidden" },
   sidebar: { width:260, background:"var(--sidebar-bg)", borderRight:"1px solid var(--card-border)", display:"flex", flexDirection:"column", padding:24, flexShrink:0, zIndex:10 },
   main: { flex:1, overflowY:"auto", padding:40, position:"relative" },
-  navItem: (active)=>({
+  navItem: (active: boolean) => ({
     display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderRadius:12, cursor:"pointer",
     background:active?"rgba(59, 130, 246, 0.1)":"transparent",
     color:active?"var(--accent)":"var(--text-dim)",
@@ -58,7 +69,7 @@ const s = {
   cardTitle: { fontSize:13, fontWeight:600, color:"var(--text-dim)", textTransform:"uppercase", letterSpacing:1, marginBottom:16 },
   metricVal: { fontSize:32, fontWeight:700, color:"white", marginBottom:4 },
   metricSub: { fontSize:12, color:"var(--text-dim)" },
-  grid: (cols)=>({ display:"grid", gridTemplateColumns:`repeat(${cols}, 1fr)`, gap:24 }),
+  grid: (cols: number) => ({ display:"grid", gridTemplateColumns:`repeat(${cols}, 1fr)`, gap:24 }),
   pageTitle: { fontSize:28, fontWeight:800, color:"white", marginBottom:8, letterSpacing:"-0.5px" },
   pageSub: { fontSize:15, color:"var(--text-dim)", marginBottom:32 },
   table: { width:"100%", borderCollapse:"separate", borderSpacing:"0 8px" },
@@ -68,8 +79,8 @@ const s = {
   select: { background:"rgba(255,255,255,0.05)", border:"1px solid var(--card-border)", borderRadius:8, color:"white", padding:"8px 12px", cursor:"pointer" },
   btn: (v="default") => ({ padding:"7px 14px", borderRadius:6, fontSize:13, fontWeight:500, cursor:"pointer", border:"1px solid", ...(v==="primary"?{background:"#2563eb",color:"#fff",borderColor:"#2563eb"}:v==="danger"?{background:"#dc2626",color:"#fff",borderColor:"#dc2626"}:{background:"#1e2235",color:"#94a3b8",borderColor:"#2d3348"}) }),
   aiCard: { background:"rgba(13, 26, 46, 0.4)", border:"1px solid rgba(59, 130, 246, 0.2)", borderRadius:16, padding:24, backdropFilter:"var(--glass-effect)" },
-  risk: (lvl) => ({ background: lvl==="P0"?"rgba(244, 63, 94, 0.1)":lvl==="P1"?"rgba(245, 158, 11, 0.1)":"rgba(59, 130, 246, 0.1)", border:`1px solid ${lvl==="P0"?"rgba(244, 63, 94, 0.2)":lvl==="P1"?"rgba(245, 158, 11, 0.2)":"rgba(59, 130, 246, 0.2)"}`, borderRadius:12, padding:16, marginBottom:12 }),
-  badge: (type, map) => {
+  risk: (lvl: string) => ({ background: lvl==="P0"?"rgba(244, 63, 94, 0.1)":lvl==="P1"?"rgba(245, 158, 11, 0.1)":"rgba(59, 130, 246, 0.1)", border:`1px solid ${lvl==="P0"?"rgba(244, 63, 94, 0.2)":lvl==="P1"?"rgba(245, 158, 11, 0.2)":"rgba(59, 130, 246, 0.2)"}`, borderRadius:12, padding:16, marginBottom:12 }),
+  badge: (type: string, map: any) => {
     const c = map[type] || { bg:"#1e1e2e", text:"#94a3b8", border:"#475569" };
     return {
       display:"inline-flex", alignItems:"center", padding:"4px 10px", borderRadius:20, fontSize:10, fontWeight:700,
@@ -78,9 +89,9 @@ const s = {
   },
 };
 
-function Badge({ label, map }) { return <span style={s.badge(label, map)}>{label}</span>; }
+function Badge({ label, map }: { label: string; map: any }) { return <span style={s.badge(label, map)}>{label}</span>; }
 
-function MiniBar({ label, value, max, color="#3b82f6" }) {
+function MiniBar({ label, value, max, color = "#3b82f6" }: { label: string; value: number; max: number; color?: string }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
       <div style={{ width:100, fontSize:12, color:"#94a3b8", textAlign:"right", flexShrink:0 }}>{label}</div>
@@ -92,10 +103,10 @@ function MiniBar({ label, value, max, color="#3b82f6" }) {
   );
 }
 
-function DonutSVG({ data, colors }) {
-  const total = data.reduce((s,d)=>s+d.v,0)||1;
+function DonutSVG({ data, colors }: { data: any[]; colors: string[] }) {
+  const total = data.reduce((s: number, d: any) => s + d.v, 0) || 1;
   let cum=0;
-  const slices = data.map((d,i)=>{
+  const slices = data.map((d: any, i: number) => {
     const pct = d.v/total, start=cum, end=cum+pct;
     cum=end;
     const s1=start*2*Math.PI-Math.PI/2, e1=end*2*Math.PI-Math.PI/2;
@@ -106,13 +117,13 @@ function DonutSVG({ data, colors }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:16 }}>
       <svg width={120} height={120} style={{ flexShrink:0 }}>
-        {slices.map(sl=><path key={sl.label} d={sl.path} fill={sl.color} stroke="#0f1117" strokeWidth={2}/>)}
+        {slices.map((sl: any) => <path key={sl.label} d={sl.path} fill={sl.color} stroke="#0f1117" strokeWidth={2} />)}
         <circle cx={60} cy={60} r={28} fill="#13151f"/>
         <text x={60} y={56} textAnchor="middle" fontSize={16} fontWeight={700} fill="#f1f5f9">{total}</text>
         <text x={60} y={70} textAnchor="middle" fontSize={10} fill="#64748b">total</text>
       </svg>
       <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-        {slices.map((sl,i)=>(
+        {slices.map((sl: any) => (
           <div key={sl.label} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12 }}>
             <span style={{ width:8, height:8, borderRadius:2, background:sl.color, flexShrink:0 }}/>
             <span style={{ color:"#94a3b8" }}>{sl.label}</span>
@@ -125,7 +136,7 @@ function DonutSVG({ data, colors }) {
   );
 }
 
-function ProgressRing({ pct, size=64, stroke=6, color="#3b82f6" }) {
+function ProgressRing({ pct, size = 64, stroke = 6, color = "#3b82f6" }: { pct: number; size?: number; stroke?: number; color?: string }) {
   const r=( size-stroke*2)/2, circ=2*Math.PI*r, off=circ*(1-pct/100);
   return (
     <svg width={size} height={size}>
@@ -136,7 +147,7 @@ function ProgressRing({ pct, size=64, stroke=6, color="#3b82f6" }) {
   );
 }
 
-async function callAI(systemPrompt, userPrompt) {
+async function callAI(systemPrompt: string, userPrompt: string) {
   if (!GEMINI_API_KEY) throw new Error("VITE_GEMINI_API_KEY is not configured");
   const res = await fetch(`${GEMINI_API}/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
     method:"POST",
@@ -149,27 +160,22 @@ async function callAI(systemPrompt, userPrompt) {
   });
   if (!res.ok) throw new Error(`Gemini request failed: ${res.status}`);
   const d = await res.json();
-  return d.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("").trim() || "";
+  return d.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("").trim() || "";
 }
 
-function AISpinner() {
-  return <div style={{ display:"flex", alignItems:"center", gap:8, color:"#64748b", fontSize:13 }}>
-    <div style={{ width:16, height:16, border:"2px solid #2563eb", borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }}/>
-    Analyzing with AI...
-  </div>;
-}
+
 
 // ─── Pages ──────────────────────────────────────────────────────────────────
 
-function Overview({ data }) {
+function Overview({ data }: { data: BacklogRow[] }) {
   const m = useMemo(()=>({
     total:data.length,
-    done:data.filter(d=>d.status==="Completed"||d.status==="Closed").length,
-    overdue:data.filter(d=>d.status==="Overdue").length,
-    active:data.filter(d=>["Dev In Progress","UAT In Progress","Solutioning"].includes(d.status)).length,
-    pipeline:data.filter(d=>d.status==="Pipeline").length,
-    critical:data.filter(d=>d.priority==="P0").length,
-    completionRate:data.length?Math.round(data.filter(d=>["Completed","Closed"].includes(d.status)).length/data.length*100):0,
+    done: data.filter((d: BacklogRow) => d.status === "Completed" || d.status === "Closed").length,
+    overdue: data.filter((d: BacklogRow) => d.status === "Overdue").length,
+    active: data.filter((d: BacklogRow) => ["Dev In Progress", "UAT In Progress", "Solutioning"].includes(d.status)).length,
+    pipeline: data.filter((d: BacklogRow) => d.status === "Pipeline").length,
+    critical: data.filter((d: BacklogRow) => d.priority === "P0").length,
+    completionRate: data.length ? Math.round(data.filter((d: BacklogRow) => ["Completed", "Closed"].includes(d.status)).length / data.length * 100) : 0,
   }),[data]);
 
   const statusData=[
@@ -177,13 +183,13 @@ function Overview({ data }) {
     {label:"Overdue",v:m.overdue},{label:"Pipeline",v:m.pipeline}
   ];
   const statusColors=["#10b981","#3b82f6","#ef4444","#475569"];
-  const teams=[...new Set(data.map(d=>d.team))];
-  const maxTeam=Math.max(...teams.map(t=>data.filter(d=>d.team===t).length));
+  const teams: string[] = [...new Set(data.map((d: BacklogRow) => d.team))];
+  const maxTeam = Math.max(...teams.map((t: string) => data.filter((d: BacklogRow) => d.team === t).length));
   const priorityData=[
-    {label:"P0",v:data.filter(d=>d.priority==="P0").length},
-    {label:"P1",v:data.filter(d=>d.priority==="P1").length},
-    {label:"P2",v:data.filter(d=>d.priority==="P2").length},
-    {label:"NA",v:data.filter(d=>d.priority==="NA").length},
+    { label: "P0", v: data.filter((d: BacklogRow) => d.priority === "P0").length },
+    { label: "P1", v: data.filter((d: BacklogRow) => d.priority === "P1").length },
+    { label: "P2", v: data.filter((d: BacklogRow) => d.priority === "P2").length },
+    { label: "NA", v: data.filter((d: BacklogRow) => d.priority === "NA").length },
   ];
 
   return (
@@ -233,12 +239,12 @@ function Overview({ data }) {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
         <div style={s.card}>
           <div style={s.cardTitle}>Team workload</div>
-          {teams.map((t,i)=><MiniBar key={t} label={t} value={data.filter(d=>d.team===t).length} max={maxTeam} color={CHART_COLORS[i%CHART_COLORS.length]}/>)}
+          {teams.map((t: string, i: number) => <MiniBar key={t} label={t} value={data.filter((d: BacklogRow) => d.team === t).length} max={maxTeam} color={CHART_COLORS[i % CHART_COLORS.length]} />)}
         </div>
         <div style={s.card}>
           {/* Recent activity filter: Overdue or P0 */}
           <div style={s.cardTitle}>Recent activity — overdue & P0</div>
-          {data.filter(d=>d.status==="Overdue"||d.priority==="P0").slice(0,5).map(d=>(
+          {data.filter((d: BacklogRow) => d.status === "Overdue" || d.priority === "P0").slice(0, 5).map((d: BacklogRow) => (
             <div key={d.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:"1px solid #1a1e2e" }}>
               <div>
                 <div style={{ fontSize:12, fontWeight:600, color:"#94a3b8" }}>{d.id}</div>
@@ -256,33 +262,34 @@ function Overview({ data }) {
   );
 }
 
-function BacklogTable({ data, setData }) {
+function BacklogTable({ data, setData }: { data: BacklogRow[]; setData: React.Dispatch<React.SetStateAction<BacklogRow[]>> }) {
   const [search,setSearch]=useState(""), [fStatus,setFS]=useState("All"), [fPri,setFP]=useState("All"), [fTeam,setFT]=useState("All");
   const [sortCol,setSortCol]=useState("id"), [sortDir,setDir]=useState("asc");
-  const [editId,setEditId]=useState(null), [editData,setED]=useState({});
+  const [editId,setEditId]=useState<string | null>(null), [editData,setED]=useState<Partial<BacklogRow>>({});
   const [showAdd,setShowAdd]=useState(false);
-  const fileRef=useRef();
-  const teams=useMemo(()=>["All",...new Set(data.map(d=>d.team))],[data]);
+  const fileRef=useRef<HTMLInputElement | null>(null);
+  const teams: string[] = useMemo(() => ["All", ...new Set(data.map((d: BacklogRow) => d.team))], [data]);
 
-  const filtered=useMemo(()=>{
-    let d=data.filter(r => 
-      (fStatus==="All" || r.status===fStatus) &&
-      (fPri==="All" || r.priority===fPri) &&
-      (fTeam==="All" || r.team===fTeam) &&
-      (!search || Object.values(r).some(v=>v.toString().toLowerCase().includes(search.toLowerCase())))
+  const filtered = useMemo(() => {
+    let d = data.filter((r: BacklogRow) =>
+      (fStatus === "All" || r.status === fStatus) &&
+      (fPri === "All" || r.priority === fPri) &&
+      (fTeam === "All" || r.team === fTeam) &&
+      (!search || Object.values(r).some((v: any) => v.toString().toLowerCase().includes(search.toLowerCase())))
     );
-    return [...d].sort((a,b)=>{ 
-      const av=a[sortCol]||"", bv=b[sortCol]||""; 
-      return sortDir==="asc" ? (av>bv?1:-1) : (av<bv?1:-1); 
+    return [...d].sort((a: BacklogRow, b: BacklogRow) => {
+      const av = a[sortCol as keyof BacklogRow] || "";
+      const bv = b[sortCol as keyof BacklogRow] || "";
+      return sortDir === "asc" ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
     });
-  },[data,fStatus,fPri,fTeam,search,sortCol,sortDir]);
+  }, [data, fStatus, fPri, fTeam, search, sortCol, sortDir]);
 
-  const sort = col => { 
+  const sort = (col: string) => { 
     if(sortCol===col) setDir(d=>d==="asc"?"desc":"asc"); 
     else { setSortCol(col); setDir("asc"); } 
   };
   
-  const SortArrow = ({col}) => sortCol===col ? 
+  const SortArrow = ({ col }: { col: string }) => sortCol === col ? 
     <span style={{color:"var(--accent)"}}>{sortDir==="asc"?" ↑":" ↓"}</span> : 
     <span style={{color:"var(--text-dim)"}}> ↕</span>;
 
@@ -293,7 +300,7 @@ function BacklogTable({ data, setData }) {
     const a = document.createElement("a"); a.href="data:text/csv,"+encodeURIComponent(csv); a.download="backlog_export.csv"; a.click();
   };
 
-  const handleUpload = async (e) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if(!file) return
     const formData = new FormData();
@@ -316,7 +323,7 @@ function BacklogTable({ data, setData }) {
         </div>
         <div style={{ display:"flex", gap:12 }}>
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" style={{display:"none"}} onChange={handleUpload} />
-          <button className="btn-secondary" onClick={()=>fileRef.current.click()}>Import Data</button>
+          <button className="btn-secondary" onClick={() => fileRef.current?.click()}>Import Data</button>
           <button className="btn-secondary" onClick={exportCSV}>Export CSV</button>
           <button className="btn-primary" onClick={()=>setShowAdd(true)}>+ Create Requirement</button>
         </div>
@@ -329,15 +336,15 @@ function BacklogTable({ data, setData }) {
             <span style={{ position:"absolute", left:14, top:11, color:"var(--text-dim)", fontSize:14 }}>🔍</span>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search backlog..." style={{ ...s.input, width:"100%", paddingLeft:40 }}/>
           </div>
-          {[
+          {([
             ["Status", ["All", ...Object.keys(SC)], fStatus, setFS],
             ["Priority", ["All", "P0", "P1", "P2", "NA"], fPri, setFP],
             ["Team", teams, fTeam, setFT]
-          ].map(([lbl,opts,val,set])=>(
+          ] as [string, string[], string, React.Dispatch<React.SetStateAction<string>>][]).map(([lbl,opts,val,set])=>(
             <div key={lbl} style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ fontSize:12, color:"var(--text-dim)", fontWeight:600 }}>{lbl}</span>
               <select value={val} onChange={e=>set(e.target.value)} style={s.select}>
-                {opts.map(o=><option key={o}>{o}</option>)}
+                {(opts as string[]).map((o: string) => <option key={o}>{o}</option>)}
               </select>
             </div>
           ))}
@@ -378,7 +385,7 @@ function BacklogTable({ data, setData }) {
                         </select>
                       </td>
                       <td style={s.td}>
-                        <button className="btn-primary" style={{padding:"4px 8px", fontSize:11}} onClick={()=>{ setData(d=>d.map(r=>r.id===editId?{...r,...editData}:r)); setEditId(null); }}>Save</button>
+                        <button className="btn-primary" style={{ padding: "4px 8px", fontSize: 11 }} onClick={() => { setData((d: BacklogRow[]) => d.map((r: BacklogRow) => r.id === editId ? { ...r, ...editData } : r)); setEditId(null); }}>Save</button>
                       </td>
                     </>
                   ) : (
@@ -408,15 +415,15 @@ function BacklogTable({ data, setData }) {
   );
 }
 
-function Analytics({ data }) {
+function Analytics({ data }: { data: BacklogRow[] }) {
   const byFunc=useMemo(()=>[...new Set(data.map(d=>d.function))].map(f=>({ label:f, v:data.filter(d=>d.function===f).length })),[data]);
   const byTeamStatus=useMemo(()=>{
-    const teams=[...new Set(data.map(d=>d.team))];
+    const teams: string[] = [...new Set(data.map(d=>d.team))];
     return teams.map(t=>({ team:t, completed:data.filter(d=>d.team===t&&["Completed","Closed","UAT Completed"].includes(d.status)).length, active:data.filter(d=>d.team===t&&["Dev In Progress","UAT In Progress","Solutioning"].includes(d.status)).length, overdue:data.filter(d=>d.team===t&&d.status==="Overdue").length }));
   },[data]);
   const delayStats=useMemo(()=>{
     const done=data.filter(d=>d.actualEnd&&d.plannedEnd);
-    const delays=done.map(d=>Math.round((new Date(d.actualEnd)-new Date(d.plannedEnd))/86400000));
+    const delays=done.map((d: BacklogRow)=>Math.round((new Date(d.actualEnd!).getTime()-new Date(d.plannedEnd).getTime())/86400000));
     return { onTime:delays.filter(d=>d<=0).length, delayed:delays.filter(d=>d>0).length, avgDelay: delays.length?Math.round(delays.reduce((s,d)=>s+d,0)/delays.length):0 };
   },[data]);
   const maxFunc=Math.max(...byFunc.map(f=>f.v),1);
@@ -537,15 +544,15 @@ function Analytics({ data }) {
   );
 }
 
-function Timeline({ data }) {
+function Timeline({ data }: { data: BacklogRow[] }) {
   const [filter,setFilter]=useState("All");
   const items=useMemo(()=>{
     const d=filter==="All"?data:data.filter(r=>r.status===filter);
-    return [...d].filter(r=>r.plannedEnd).sort((a,b)=>new Date(a.plannedEnd)-new Date(b.plannedEnd));
+    return [...d].filter(r=>r.plannedEnd).sort((a,b)=>new Date(a.plannedEnd).getTime()-new Date(b.plannedEnd).getTime());
   },[data,filter]);
   const minD=new Date("2026-03-01"), maxD=new Date("2026-07-01");
-  const span=maxD-minD;
-  const pct=d=>Math.max(0,Math.min(100,(new Date(d)-minD)/span*100));
+  const span=maxD.getTime()-minD.getTime();
+  const pct = (d: string) => Math.max(0, Math.min(100, (new Date(d).getTime() - minD.getTime()) / span * 100));
 
   return (
     <div className="animate-in" style={{ paddingBottom:40 }}>
@@ -555,13 +562,13 @@ function Timeline({ data }) {
           <p style={s.pageSub}>Planned vs actual delivery dates</p>
         </div>
         <select value={filter} onChange={e=>setFilter(e.target.value)} style={s.select}>
-          {["All",...Object.keys(SC)].map(o=><option key={o}>{o}</option>)}
+          {(["All",...Object.keys(SC)] as string[]).map((o: string) => <option key={o}>{o}</option>)}
         </select>
       </div>
 
       <div style={{ ...s.card, padding:32 }} className="glass-card">
         <div style={{ display:"flex", marginBottom:20, paddingLeft:200, gap:0 }}>
-          {["Mar","Apr","May","Jun","Jul"].map((m,i)=>(
+          {["Mar", "Apr", "May", "Jun", "Jul"].map((m: string) => (
             <div key={m} style={{ flex:1, fontSize:12, color:"var(--text-dim)", fontWeight:700, textAlign:"left", borderLeft:"1px solid rgba(255,255,255,0.05)", paddingLeft:12 }}>{m} 2026</div>
           ))}
         </div>
@@ -570,7 +577,7 @@ function Timeline({ data }) {
           {items.map(row=>{
             const p1=pct(row.plannedEnd);
             const p2=row.actualEnd?pct(row.actualEnd):null;
-            const diff=row.actualEnd?Math.round((new Date(row.actualEnd)-new Date(row.plannedEnd))/86400000):null;
+            const diff=row.actualEnd?Math.round((new Date(row.actualEnd).getTime()-new Date(row.plannedEnd).getTime())/86400000):0;
             
             return (
               <div key={row.id} style={{ display:"flex", alignItems:"center", height:56, borderBottom:"1px solid rgba(255,255,255,0.03)", position:"relative" }}>
@@ -604,14 +611,14 @@ function Timeline({ data }) {
   );
 }
 
-function TeamView({ data }) {
-  const teams = useMemo(() => [...new Set(data.map(d => d.team))], [data]);
+function TeamView({ data }: { data: BacklogRow[] }) {
+  const teams: string[] = useMemo(() => [...new Set(data.map(d => d.team))], [data]);
   const [selected, setSelected] = useState(teams[0]);
-  const teamData = useMemo(() => data.filter(d => d.team === selected), [data, selected]);
+  const teamData = useMemo(() => data.filter((d: BacklogRow) => d.team === selected), [data, selected]);
   
-  const done = teamData.filter(d => ["Completed", "Closed", "UAT Completed"].includes(d.status)).length;
-  const active = teamData.filter(d => ["Dev In Progress", "UAT In Progress", "Solutioning"].includes(d.status)).length;
-  const overdue = teamData.filter(d => d.status === "Overdue").length;
+  const done = teamData.filter((d: BacklogRow) => ["Completed", "Closed", "UAT Completed"].includes(d.status)).length;
+  const active = teamData.filter((d: BacklogRow) => ["Dev In Progress", "UAT In Progress", "Solutioning"].includes(d.status)).length;
+  const overdue = teamData.filter((d: BacklogRow) => d.status === "Overdue").length;
   const rate = Math.round(done / Math.max(teamData.length, 1) * 100);
 
   return (
@@ -700,12 +707,12 @@ function TeamView({ data }) {
   );
 }
 
-function AIInsights({ data }) {
-  const [healthResult, setHealth] = useState(null), [healthLoading, setHL] = useState(false);
-  const [risks, setRisks] = useState([]), [risksLoading, setRL] = useState(false);
-  const [teamSummaries, setTS] = useState({}), [tsLoading, setTSL] = useState(false);
-  const [predict, setPredict] = useState([]), [predictLoading, setPL] = useState(false);
-  const [selectedItem, setSI] = useState(data[0]?.id), [itemRec, setIR] = useState(""), [itemLoading, setIL] = useState(false);
+function AIInsights({ data }: { data: BacklogRow[] }) {
+  const [healthResult, setHealth] = useState<any>(null), [healthLoading, setHL] = useState(false);
+  const [risks, setRisks] = useState<any[]>([]), [risksLoading, setRL] = useState(false);
+  const [teamSummaries, setTS] = useState<Record<string, string>>({}), [tsLoading, setTSL] = useState(false);
+  const [predict, setPredict] = useState<any[]>([]), [predictLoading, setPL] = useState(false);
+
 
   const runHealth = async () => {
     setHL(true);
@@ -728,10 +735,10 @@ function AIInsights({ data }) {
   const runTeamSummaries = async () => {
     setTSL(true);
     const teams = [...new Set(data.map(d => d.team))];
-    const res = {};
+    const res: Record<string, string> = {};
     for (const t of teams) {
       try {
-        res[t] = await callAI("PM Advisor. 2 sentences.", `Summarize team ${t} performance: ${JSON.stringify(data.filter(d => d.team === t))}`);
+        res[t] = await callAI("PM Advisor. 2 sentences.", `Summarize team ${t} performance: ${JSON.stringify(data.filter((d: BacklogRow) => d.team === t))}`);
       } catch { res[t] = "Summary unavailable."; }
     }
     setTS(res); setTSL(false);
@@ -746,13 +753,7 @@ function AIInsights({ data }) {
     setPL(false);
   };
 
-  const runItemRec = async () => {
-    setIL(true);
-    try {
-      setIR(await callAI("Actionable Advisor.", `Recommendation for ${selectedItem}: ${JSON.stringify(data.find(d => d.id === selectedItem))}`));
-    } catch { setIR("Failed to generate."); }
-    setIL(false);
-  };
+
 
   return (
     <div className="animate-in" style={{ paddingBottom: 40 }}>
@@ -779,11 +780,11 @@ function AIInsights({ data }) {
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                     <div style={{ background:"rgba(16,185,129,0.05)", padding:12, borderRadius:12, border:"1px solid rgba(16,185,129,0.1)" }}>
                       <div style={{ fontSize:10, fontWeight:800, color:"var(--emerald)", marginBottom:4 }}>STRENGTHS</div>
-                      {healthResult.strengths?.map(st=><div key={st} style={{ fontSize:11, color:"var(--text-main)" }}>• {st}</div>)}
+                      {healthResult.strengths?.map((st: string) => <div key={st} style={{ fontSize: 11, color: "var(--text-main)" }}>• {st}</div>)}
                     </div>
                     <div style={{ background:"rgba(244, 63, 94, 0.05)", padding:12, borderRadius:12, border:"1px solid rgba(244, 63, 94, 0.1)" }}>
                       <div style={{ fontSize:10, fontWeight:800, color:"#fb7185", marginBottom:4 }}>CONCERNS</div>
-                      {healthResult.concerns?.map(cn=><div key={cn} style={{ fontSize:11, color:"var(--text-main)" }}>• {cn}</div>)}
+                      {healthResult.concerns?.map((cn: string) => <div key={cn} style={{ fontSize: 11, color: "var(--text-main)" }}>• {cn}</div>)}
                     </div>
                   </div>
                </div>
@@ -798,7 +799,7 @@ function AIInsights({ data }) {
             <button className="btn-secondary" style={{ fontSize:12 }} onClick={runRisks} disabled={risksLoading}>Scan</button>
           </div>
           <div style={{ maxHeight: 300, overflowY: "auto", display:"flex", flexDirection:"column", gap:12 }}>
-            {risks.map(r => (
+            {risks.map((r: any) => (
               <div key={r.id} style={s.risk(r.level)}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontWeight: 700, color: "white", fontSize:13 }}>{r.title}</span>
@@ -818,7 +819,7 @@ function AIInsights({ data }) {
         <div style={s.aiCard}>
           <div style={s.cardTitle}>Intelligent Forecasting</div>
           <div style={{ display: "flex", flexDirection: "column", gap:12, marginTop:16 }}>
-            {predict.slice(0,5).map(p => (
+            {predict.slice(0,5).map((p: any) => (
               <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background:"rgba(255,255,255,0.02)", padding:"12px 16px", borderRadius:12, border:"1px solid var(--card-border)" }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize:13 }}>{p.title}</div>
@@ -852,8 +853,16 @@ function AIInsights({ data }) {
   );
 }
 
-function AddDialog({ data, setData, close }) {
-  const [form, setForm] = useState({ id:"", title:"", function:"", team:"", priority:"P1", status:"Pipeline", plannedEnd:"" });
+function AddDialog({
+  data,
+  setData,
+  close
+}: {
+  data: BacklogRow[];
+  setData: React.Dispatch<React.SetStateAction<BacklogRow[]>>;
+  close: () => void;
+}) {
+  const [form, setForm] = useState<BacklogRow>({ id: "", title: "", function: "", team: "", priority: "P2", status: "Pipeline", plannedEnd: "" });
 
   const save = () => {
     if(!form.id || !form.title) return alert("ID and Title are required");
@@ -894,13 +903,13 @@ function AddDialog({ data, setData, close }) {
              <div>
                <label style={{ fontSize:10, fontWeight:800, color:"var(--text-dim)", display:"block", marginBottom:8, textTransform:"uppercase" }}>PRIORITY</label>
                <select value={form.priority} onChange={e=>setForm({...form, priority:e.target.value})} style={{ ...s.select, width:"100%" }}>
-                 {["P0","P1","P2","NA"].map(p=><option key={p}>{p}</option>)}
+                 {(["P0","P1","P2","NA"] as string[]).map((p: string) => <option key={p}>{p}</option>)}
                </select>
              </div>
              <div>
                <label style={{ fontSize:10, fontWeight:800, color:"var(--text-dim)", display:"block", marginBottom:8, textTransform:"uppercase" }}>STATUS</label>
                <select value={form.status} onChange={e=>setForm({...form, status:e.target.value})} style={{ ...s.select, width:"100%" }}>
-                 {Object.keys(SC).map(st=><option key={st}>{st}</option>)}
+                 {(Object.keys(SC) as string[]).map((st: string) => <option key={st}>{st}</option>)}
                </select>
              </div>
           </div>
@@ -923,10 +932,10 @@ function AddDialog({ data, setData, close }) {
 // ─── App Shell ───────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [p,setP]=useState("overview");
-  const [data,setData]=useState(SAMPLE);
+  const [p, setP] = useState("overview");
+  const [data,setData]=useState<BacklogRow[]>(SAMPLE);
 
-  const overdueCount=data.filter(d=>d.status==="Overdue").length;
+  const overdueCount = data.filter((d: BacklogRow) => d.status === "Overdue").length;
 
   return (
     <div style={s.app}>
@@ -950,7 +959,7 @@ export default function App() {
             { id:"analytics", lbl:"Advanced Analytics", icon:"📉" },
             { id:"teams", lbl:"Team Insights", icon:"👥" },
             { id:"ai", lbl:"AI Assistant", icon:"✦" },
-          ].map(i=>(
+          ].map((i: {id: string, lbl: string, icon: string}) => (
             <div key={i.id} style={s.navItem(p===i.id)} onClick={()=>setP(i.id)}>
               <span style={{ fontSize:18 }}>{i.icon}</span>
               {i.lbl}
